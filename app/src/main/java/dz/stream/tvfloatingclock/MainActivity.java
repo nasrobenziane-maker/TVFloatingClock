@@ -1,4 +1,4 @@
-package dz.stream.tvfloatingclock;
+ package dz.stream.tvfloatingclock;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -105,5 +105,3 @@ public class MainActivity extends Activity {
         }
         startService(new Intent(this, FloatingClockService.class));
         status.setText("تم طلب تشغيل الساعة. إذا لم تظهر، تحقق من أذونات التلفاز.");
-    }
-}
