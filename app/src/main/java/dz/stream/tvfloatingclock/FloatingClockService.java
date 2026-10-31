@@ -1,4 +1,4 @@
-َpackage dz.stream.tvfloatingclock;
+package dz.stream.tvfloatingclock;
 
 import android.Manifest;
 import android.app.Service;
