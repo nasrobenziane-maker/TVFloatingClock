@@ -11,6 +11,8 @@
     <application
         android:allowBackup="false"
         android:label="TV Floating Clock"
+        android:icon="@drawable/ic_launcher"
+        android:banner="@drawable/banner"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
         <activity
