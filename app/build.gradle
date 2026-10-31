@@ -1,0 +1,16 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'dz.stream.tvfloatingclock'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'dz.stream.tvfloatingclock'
+        minSdk 23
+        targetSdk 28
+        versionCode 1
+        versionName '1.0'
+    }
+}
