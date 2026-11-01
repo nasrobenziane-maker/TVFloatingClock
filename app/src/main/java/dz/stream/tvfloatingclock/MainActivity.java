@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -174,11 +175,24 @@ public class MainActivity extends Activity {
             refreshStatus();
         });
         b.setFocusable(true);
-        b.setOnFocusChangeListener((v, focused) ->
-                b.setBackgroundColor(focused ? 0xFF333333 : 0xFF666666));
-        b.setBackgroundColor(0xFF666666);
+        b.setBackground(cornerButtonBackground(false));
         b.setTextColor(0xFFFFFFFF);
+        b.setOnFocusChangeListener((v, focused) -> {
+            b.setBackground(cornerButtonBackground(focused));
+            b.setScaleX(focused ? 1.06f : 1f);
+            b.setScaleY(focused ? 1.06f : 1f);
+            b.setElevation(focused ? 8f : 2f);
+        });
         return b;
+    }
+
+    private GradientDrawable cornerButtonBackground(boolean focused) {
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(focused ? 0xFF1B2735 : 0xFF626D79);
+        background.setCornerRadius(8f);
+        background.setStroke(focused ? 3 : 1,
+                focused ? 0xFF64E8D2 : 0xFF8995A2);
+        return background;
     }
 
     private void changeBg(int delta) {
