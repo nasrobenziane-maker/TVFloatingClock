@@ -25,14 +25,16 @@ public class MainActivity extends Activity {
     static final String KEY_SIZE = "size";
     static final String KEY_COLOR = "color";
     static final String KEY_BG = "bg_percent";
+    static final String KEY_TEXT_ALPHA = "text_alpha";
+    static final String KEY_REMOTE_MOVE = "remote_move";
+    static final String KEY_CORNER = "corner";
     static final int[] COLORS = {
-            0xFFFFFFFF, 0xFFFFEB3B, 0xFF00E5FF, 0xFF69F0AE, 0xFFFF9800, 0xFFFF5252
+            0xFFFFFFFF, 0xFFFFEB3B, 0xFF00E5FF, 0xFF69F0AE, 0xFFFF9800, 0xFFFF5252,
+            0xFFBDBDBD, 0xFF424242
     };
     static final String[] COLOR_NAMES = {
-            "أبيض", "أصفر", "سماوي", "أخضر", "برتقالي", "أحمر"
+            "أبيض", "أصفر", "سماوي", "أخضر", "برتقالي", "أحمر", "رمادي فاتح", "رمادي غامق"
     };
-    private static final int STEP = 20;
-
     private TextView status;
     private SharedPreferences prefs;
 
@@ -66,18 +68,39 @@ public class MainActivity extends Activity {
         layout.addView(button("إيقاف الساعة",
                 v -> stopService(new Intent(this, FloatingClockService.class))));
 
-        layout.addView(label("مكان النافذة"));
+        CheckBox remoteMove = new CheckBox(this);
+        remoteMove.setText("تحريك الساعة بأسهم الريموت (اضغط OK للخروج)");
+        remoteMove.setTextColor(0xFFFFFFFF);
+        remoteMove.setChecked(prefs.getBoolean(KEY_REMOTE_MOVE, false));
+        remoteMove.setOnCheckedChangeListener((buttonView, checked) ->
+                prefs.edit().putBoolean(KEY_REMOTE_MOVE, checked).apply());
+        layout.addView(remoteMove);
+
+        layout.addView(label("مكان النافذة — اختر أحد الأركان"));
         layout.addView(row(
-                button("◀", v -> move(-STEP, 0)),
-                button("▶", v -> move(STEP, 0)),
-                button("▲", v -> move(0, -STEP)),
-                button("▼", v -> move(0, STEP))));
+                cornerButton("أعلى اليسار", 0),
+                cornerButton("أعلى اليمين", 1)));
+        layout.addView(row(
+                cornerButton("أسفل اليسار", 2),
+                cornerButton("أسفل اليمين", 3)));
+
+        layout.addView(label("تحريك دقيق بالريموت"));
+        TextView remoteHint = new TextView(this);
+        remoteHint.setText("بعد تفعيل تحريك الريموت، استعمل الأسهم؛ اضغط OK لإيقافه.");
+        remoteHint.setTextColor(0xFFB0BEC5);
+        remoteHint.setTextSize(13);
+        layout.addView(remoteHint);
 
         layout.addView(label("حجم الخط ولونه"));
         layout.addView(row(
                 button("A-", v -> changeSize(-2)),
                 button("A+", v -> changeSize(2)),
                 button("اللون", v -> nextColor())));
+
+        layout.addView(label("شفافية الخط"));
+        layout.addView(row(
+                button("أقل شفافية", v -> changeTextAlpha(-10)),
+                button("أكثر شفافية", v -> changeTextAlpha(10))));
 
         layout.addView(label("شفافية الخلفية"));
         layout.addView(row(
@@ -131,18 +154,31 @@ public class MainActivity extends Activity {
         return row;
     }
 
-    private void move(int dx, int dy) {
-        int x = Math.max(0, prefs.getInt(KEY_X, 30) + dx);
-        int y = Math.max(0, prefs.getInt(KEY_Y, 50) + dy);
-        prefs.edit().putInt(KEY_X, x).putInt(KEY_Y, y).apply();
-        refreshStatus();
-    }
-
     private void changeSize(int delta) {
         int size = prefs.getInt(KEY_SIZE, 26) + delta;
         size = Math.max(10, Math.min(120, size));
         prefs.edit().putInt(KEY_SIZE, size).apply();
         refreshStatus();
+    }
+
+    private void changeTextAlpha(int delta) {
+        int alpha = prefs.getInt(KEY_TEXT_ALPHA, 100) + delta;
+        alpha = Math.max(10, Math.min(100, alpha));
+        prefs.edit().putInt(KEY_TEXT_ALPHA, alpha).apply();
+        refreshStatus();
+    }
+
+    private Button cornerButton(String text, int corner) {
+        Button b = button(text, v -> {
+            prefs.edit().putInt(KEY_CORNER, corner).apply();
+            refreshStatus();
+        });
+        b.setFocusable(true);
+        b.setOnFocusChangeListener((v, focused) ->
+                b.setBackgroundColor(focused ? 0xFF333333 : 0xFF666666));
+        b.setBackgroundColor(0xFF666666);
+        b.setTextColor(0xFFFFFFFF);
+        return b;
     }
 
     private void changeBg(int delta) {
