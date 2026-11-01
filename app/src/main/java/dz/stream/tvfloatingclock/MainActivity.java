@@ -132,6 +132,15 @@ public class MainActivity extends Activity {
     private Button button(String text, View.OnClickListener listener) {
         Button b = new Button(this);
         b.setText(text);
+        b.setTextColor(0xFFFFFFFF);
+        b.setFocusable(true);
+        b.setBackground(cornerButtonBackground(false));
+        b.setOnFocusChangeListener((v, focused) -> {
+            b.setBackground(cornerButtonBackground(focused));
+            b.setScaleX(focused ? 1.06f : 1f);
+            b.setScaleY(focused ? 1.06f : 1f);
+            b.setElevation(focused ? 8f : 2f);
+        });
         b.setOnClickListener(listener);
         return b;
     }
@@ -173,15 +182,6 @@ public class MainActivity extends Activity {
         Button b = button(text, v -> {
             prefs.edit().putInt(KEY_CORNER, corner).apply();
             refreshStatus();
-        });
-        b.setFocusable(true);
-        b.setBackground(cornerButtonBackground(false));
-        b.setTextColor(0xFFFFFFFF);
-        b.setOnFocusChangeListener((v, focused) -> {
-            b.setBackground(cornerButtonBackground(focused));
-            b.setScaleX(focused ? 1.06f : 1f);
-            b.setScaleY(focused ? 1.06f : 1f);
-            b.setElevation(focused ? 8f : 2f);
         });
         return b;
     }
