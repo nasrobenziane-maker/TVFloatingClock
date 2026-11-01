@@ -13,6 +13,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -62,23 +63,57 @@ public class FloatingClockService extends Service {
         int color = MainActivity.COLORS[ci];
         clockText.setTextSize(size);
         wifiText.setTextSize(Math.max(10f, size * 0.5f));
-        clockText.setTextColor(color);
-        wifiText.setTextColor(color);
+        int textAlpha = Math.max(10, Math.min(100,
+                prefs.getInt(MainActivity.KEY_TEXT_ALPHA, 100))) * 255 / 100;
+        int textColor = (textAlpha << 24) | (color & 0x00FFFFFF);
+        clockText.setTextColor(textColor);
+        wifiText.setTextColor(textColor);
 
         int bgPercent = prefs.getInt(MainActivity.KEY_BG, 72);
         bgPercent = Math.max(0, Math.min(100, bgPercent));
         int alpha = bgPercent * 255 / 100;
         clockView.setBackgroundColor((alpha << 24) | 0x202020);
 
-        if (!dragging) {
+        if (params != null && clockView != null && !dragging) {
+            int corner = prefs.getInt(MainActivity.KEY_CORNER, -1);
             int x = prefs.getInt(MainActivity.KEY_X, 30);
             int y = prefs.getInt(MainActivity.KEY_Y, 50);
-            if (params.x != x || params.y != y) {
+            if (corner >= 0 && corner <= 3 && clockView.getWidth() > 0) {
+                android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+                windowManager.getDefaultDisplay().getMetrics(metrics);
+                int right = Math.max(30, metrics.widthPixels - clockView.getWidth() - 30);
+                int bottom = Math.max(50, metrics.heightPixels - clockView.getHeight() - 50);
+                x = (corner == 1 || corner == 3) ? right : 30;
+                y = (corner == 2 || corner == 3) ? bottom : 50;
+            }
+            boolean remoteMove = prefs.getBoolean(MainActivity.KEY_REMOTE_MOVE, false);
+            clockView.setFocusableInTouchMode(remoteMove);
+            int wantedFlags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                    | (remoteMove ? 0 : WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
+            boolean flagsChanged = params.flags != wantedFlags;
+            params.flags = wantedFlags;
+            if (params.x != x || params.y != y || flagsChanged) {
                 params.x = x;
                 params.y = y;
-                try { windowManager.updateViewLayout(clockView, params); } catch (Exception ignored) {}
+                try {
+                    windowManager.updateViewLayout(clockView, params);
+                    if (remoteMove && flagsChanged) clockView.requestFocus();
+                } catch (Exception ignored) {}
             }
         }
+    }
+
+    private void moveByRemote(int dx, int dy) {
+        prefs.edit().putInt(MainActivity.KEY_CORNER, -1).apply();
+        android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+        windowManager.getDefaultDisplay().getMetrics(metrics);
+        params.x = Math.max(0, Math.min(metrics.widthPixels - clockView.getWidth(),
+                params.x + dx));
+        params.y = Math.max(0, Math.min(metrics.heightPixels - clockView.getHeight(),
+                params.y + dy));
+        prefs.edit().putInt(MainActivity.KEY_X, params.x)
+                .putInt(MainActivity.KEY_Y, params.y).apply();
+        try { windowManager.updateViewLayout(clockView, params); } catch (Exception ignored) {}
     }
 
     private void buildOverlay() {
@@ -102,12 +137,32 @@ public class FloatingClockService extends Service {
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 type,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                        | (prefs.getBoolean(MainActivity.KEY_REMOTE_MOVE, false)
+                        ? 0 : WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE),
                 PixelFormat.TRANSLUCENT);
         params.gravity = Gravity.TOP | Gravity.START;
         params.x = prefs.getInt(MainActivity.KEY_X, 30);
         params.y = prefs.getInt(MainActivity.KEY_Y, 50);
+
+        box.setFocusable(true);
+        box.setFocusableInTouchMode(prefs.getBoolean(MainActivity.KEY_REMOTE_MOVE, false));
+        box.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN
+                    || !prefs.getBoolean(MainActivity.KEY_REMOTE_MOVE, false)) return false;
+            switch (keyCode) {
+                case KeyEvent.KEYCODE_DPAD_LEFT: moveByRemote(-24, 0); return true;
+                case KeyEvent.KEYCODE_DPAD_RIGHT: moveByRemote(24, 0); return true;
+                case KeyEvent.KEYCODE_DPAD_UP: moveByRemote(0, -24); return true;
+                case KeyEvent.KEYCODE_DPAD_DOWN: moveByRemote(0, 24); return true;
+                case KeyEvent.KEYCODE_DPAD_CENTER:
+                case KeyEvent.KEYCODE_ENTER:
+                    prefs.edit().putBoolean(MainActivity.KEY_REMOTE_MOVE, false).apply();
+                    applyStyle();
+                    return true;
+                default: return false;
+            }
+        });
 
         box.setOnTouchListener(new View.OnTouchListener() {
             private int startX, startY;
@@ -115,6 +170,7 @@ public class FloatingClockService extends Service {
             @Override public boolean onTouch(View v, MotionEvent event) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
+                        prefs.edit().putInt(MainActivity.KEY_CORNER, -1).apply();
                         dragging = true;
                         startX = params.x;
                         startY = params.y;
@@ -144,6 +200,7 @@ public class FloatingClockService extends Service {
         applyStyle();
         try {
             windowManager.addView(clockView, params);
+            if (prefs.getBoolean(MainActivity.KEY_REMOTE_MOVE, false)) clockView.requestFocus();
         } catch (Exception e) {
             stopSelf();
         }
